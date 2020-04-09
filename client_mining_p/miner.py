@@ -3,6 +3,7 @@ import requests
 
 import sys
 import json
+import time
 
 
 def proof_of_work(block):
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     print("ID is", id)
     f.close()
 
-    covid_coin = 0
+    coins_mined = 0
 
     # Run forever until interrupted
     while True:
@@ -64,9 +65,11 @@ if __name__ == '__main__':
             break
 
         # TODO: Get the block from `data` and use it to look for a new proof
-        print("Calculating new proof")
+        print("Starting proof of work")
+        start_time = time.perf_counter()
         new_proof = proof_of_work(data)
-        print("New proof found")
+        end_time = time.perf_counter()
+        print(f"Proof of work finished in {end_time - start_time:0.2f} seconds")
         # When found, POST it to the server {"proof": new_proof, "id": id}
         post_data = {"proof": new_proof, "id": id}
 
@@ -78,7 +81,7 @@ if __name__ == '__main__':
         # print the message from the server.
 
         if data['message'] == "New Block Forged":
-          covid_coin += 1
-          print(f"COVID coins: {covid_coin}")
+          coins_mined += 1
+          print(f"Coins mined: {coins_mined}")
         else:
           print(data['message'])
