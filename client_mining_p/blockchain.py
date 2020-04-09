@@ -140,7 +140,7 @@ def mine():
     data = request.get_json()
 
     # Check that 'proof', and 'id' are present
-    if not data.get('proof') or not data.get('id'):
+    if 'proof' not in data or 'id' not in data:
       response = {'message': "Missing proof or id"}
       return jsonify(response), 400
 
