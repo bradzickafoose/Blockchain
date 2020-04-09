@@ -52,6 +52,21 @@ class Blockchain(object):
         # Return the new block
         return block
 
+    def new_transaction(self, sender, recipient, amount):
+        """
+        Creates a new transaction to go into the next mined Block
+        :param sender: <str> Address of the Recipient
+        :param recipient: <str> Address of the Recipient
+        :param amount: <int> Amount
+        :return: <int> The index of the Block that will hold this transaction
+        """
+        self.current_transactions.append({
+        'sender': sender,
+        'recipient': recipient,
+        'amount': amount
+        })
+        return self.last_block['index'] + 1
+
     def hash(self, block):
         """
         Creates a SHA-256 hash of a Block
@@ -89,20 +104,6 @@ class Blockchain(object):
     def last_block(self):
         return self.chain[-1]
 
-    # def proof_of_work(self):
-    #     """
-    #     Simple Proof of Work Algorithm
-    #     Stringify the block and look for a proof.
-    #     Loop through possibilities, checking each one against `valid_proof`
-    #     in an effort to find a number that is a valid proof
-    #     :return: A valid proof for the provided block
-    #     """
-    #     block_string = json.dumps(self.last_block, sort_keys=True)
-    #     proof = 0
-    #     while not self.valid_proof(block_string, proof):
-    #         proof += 1
-    #     return proof
-
     @staticmethod
     def valid_proof(block_string, proof):
         """
@@ -131,23 +132,30 @@ blockchain = Blockchain()
 
 @app.route('/mine', methods=['POST'])
 def mine():
+    # Run the proof of work algorithm to get the next proof
+    # proof = blockchain.proof_of_work()
 
-    # pull the data out of the POST
+    # GET PROOF FROM CLIENT
+    # data is a dictionary with the POST variables
     data = request.get_json()
 
     # Check that 'proof', and 'id' are present
     if not data.get('proof') or not data.get('id'):
-      response = {
-        'message': "Missing proof or id"
-      }
+      response = {'message': "Missing proof or id"}
       return jsonify(response), 400
 
-    # Check if the proof is valid
-    block_string = json.dumps(blockchain.last_block, sort_keys=True)
-    if blockchain.valid_proof(block_string, data['proof']):
+    proof = data['proof']
 
-      # Forge the new Block
-      block = blockchain.new_block(data['proof'])
+    # Check if the proof is valid
+    last_block = blockchain.last_block
+    last_block_string = json.dumps(last_block, sort_keys=True)
+
+    if blockchain.valid_proof(last_block_string, proof):
+      blockchain.new_transaction(sender="0", recipient=data["id"], amount=1)
+
+      # Forge the new Block by adding it to the chain with the proof
+      previous_hash = blockchain.hash(last_block)
+      block = blockchain.new_block(proof, previous_hash)
 
       response = {
           'message': "New Block Forged",
@@ -156,14 +164,9 @@ def mine():
           'proof': block['proof'],
           'previous_hash': block['previous_hash'],
       }
-
       return jsonify(response), 201
-
     else:
-      response = {
-        'message' : "Proof is not valid"
-      }
-
+      response = {'message' : "Proof is not valid"}
       return jsonify(response), 200
 
 
@@ -177,7 +180,21 @@ def full_chain():
 
 @app.route('/last_block', methods=['GET'])
 def last_block():
+  response = {'last_block': blockchain.last_block}
   return jsonify(blockchain.last_block), 200
+
+@app.route('/transactions/new', methods=['POST'])
+def new_transaction():
+  values = request.get_json()
+
+  required = ['sender', 'recipient', 'amount']
+  if not all(k in values for k in required):
+    return 'Missing Values', 400
+
+  index = blockchain.new_transaction(values["sender"], values["recipient"], values["amount"])
+
+  response = {'message': f"Transaction will be added to Block {index}"}
+  return jsonify(response), 200
 
 # Run the program on port 5000
 if __name__ == '__main__':
